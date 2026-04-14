@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -71,6 +72,50 @@ async def shutdown():
 def health_check() -> Dict[str, str]:
     """Health check endpoint"""
     return {"status": "healthy", "service": "monitoring-system"}
+
+
+@app.get("/health/detailed")
+def health_detailed() -> Dict[str, Any]:
+    """Detailed self-health endpoint for monitoring the monitor."""
+    db_ok = True
+    db_error = None
+    collector_lag_seconds = None
+
+    try:
+        raw_count = db.get_raw_metrics_count()
+        latest_ts = db.get_latest_raw_metric_timestamp()
+        if latest_ts:
+            parsed_ts = datetime.strptime(latest_ts, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            collector_lag_seconds = int((datetime.now(timezone.utc) - parsed_ts).total_seconds())
+    except Exception as exc:
+        db_ok = False
+        db_error = str(exc)
+        raw_count = -1
+        latest_ts = None
+
+    agent_status = monitoring_agent.get_status()
+    overall = "healthy"
+    if not db_ok or not agent_status.get("is_running"):
+        overall = "critical"
+    elif collector_lag_seconds is not None and collector_lag_seconds > 20:
+        overall = "warning"
+
+    return {
+        "status": overall,
+        "components": {
+            "api": {"ok": True},
+            "database": {"ok": db_ok, "error": db_error},
+            "agent": {
+                "ok": bool(agent_status.get("is_running")),
+                "details": agent_status,
+            },
+            "collector": {
+                "raw_metrics_count": raw_count,
+                "latest_raw_metric_timestamp": latest_ts,
+                "lag_seconds": collector_lag_seconds,
+            },
+        },
+    }
 
 # Metrics endpoints
 @app.get("/metrics")

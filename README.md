@@ -14,6 +14,20 @@ It is designed as a learning-to-production bridge:
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    C[Collector: metrics_collector.py] -->|every 5s| R[(raw_metrics)]
+    R --> P[Processor: agent/monitor.py]
+    P -->|batch stats| PR[(processed_metrics)]
+    P -->|alerts| A[(alerts)]
+    P -->|events| E[(events)]
+    PR --> D[Dashboard API]
+    A --> D
+    E --> D
+    D --> S[Streamlit UI]
+    D --> O[Swagger / API Clients]
+```
+
 ### Components
 
 - `metrics_collector.py`
@@ -106,6 +120,7 @@ It is designed as a learning-to-production bridge:
 ### Core
 - `GET /` - service info + endpoint index
 - `GET /health` - API health check
+- `GET /health/detailed` - self-monitoring status of API, DB, agent, and collector lag
 
 ### Metrics
 - `GET /metrics?limit=100`
@@ -136,6 +151,27 @@ It is designed as a learning-to-production bridge:
 - `GET /thresholds`
 - `PUT /thresholds/{metric}` with body:
   - `{ "value": 75.0 }`
+
+## API Usage Examples
+
+```bash
+# Basic health
+curl http://127.0.0.1:8000/health
+
+# Detailed self-health (monitoring the monitor)
+curl http://127.0.0.1:8000/health/detailed
+
+# Agent status
+curl http://127.0.0.1:8000/agent/status
+
+# Update CPU threshold
+curl -X PUT "http://127.0.0.1:8000/thresholds/cpu" \
+  -H "Content-Type: application/json" \
+  -d '{"value": 75.0}'
+
+# Get summary
+curl http://127.0.0.1:8000/dashboard/metrics-summary
+```
 
 ## Cause-and-Effect Map (What Affects What)
 
@@ -226,6 +262,12 @@ Run all tests:
 ./venv/bin/pytest -q
 ```
 
+Current test coverage includes:
+- unit tests for detector logic
+- database and alert persistence tests
+- API smoke tests
+- integration pipeline test (raw -> batch process -> processed metrics + alerts)
+
 ## Unwanted File Cleanup Done
 
 Removed generated artifacts from repository working tree:
@@ -253,6 +295,7 @@ Added `.gitignore` to prevent re-adding:
 - Add auth/rate limiting for APIs.
 - Add retention and pruning policy.
 - Add deployment profiles (`dev/staging/prod`) with per-environment thresholds.
+- Rename repository for naming consistency (`failure-detection-and-monitoring-system`).
 
 ## Phase 1 Hardening Completed
 

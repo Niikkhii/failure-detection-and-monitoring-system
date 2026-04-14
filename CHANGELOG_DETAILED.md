@@ -2,6 +2,34 @@
 
 This file tracks major architecture and implementation changes made to this project.
 
+## 2026-04-14 - Documentation + Observability Expansion
+
+### Added Monitoring-The-Monitor Endpoint
+- Added `GET /health/detailed` in `main.py` with component-level status:
+  - API process status
+  - database status and error surface
+  - monitoring agent status/details
+  - collector lag detection using latest raw metric timestamp
+
+### Database Helper for Collector Freshness
+- Added `get_latest_raw_metric_timestamp()` in `storage/database.py`.
+- Used by `/health/detailed` to compute collector lag and signal warnings.
+
+### Added Pipeline Integration Test
+- Added `tests/test_pipeline_integration.py`:
+  - Inserts raw samples
+  - Runs monitoring agent loop in test
+  - Verifies processed metrics are created
+  - Verifies raw queue is drained
+  - Verifies alert generation path
+
+### README Expanded
+- Added architecture diagram (Mermaid).
+- Added API usage examples (`curl`).
+- Added explicit self-health endpoint docs.
+- Added detailed test coverage summary.
+- Added repository naming consistency recommendation.
+
 ## 2026-04-14 - Phase 1 Hardening
 
 ### Added Environment Profiles

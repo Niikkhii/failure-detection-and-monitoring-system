@@ -114,6 +114,22 @@ class Database:
         conn.close()
         return count
 
+    def get_latest_raw_metric_timestamp(self) -> Optional[str]:
+        """Get the most recent raw metric timestamp."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT timestamp
+            FROM raw_metrics
+            ORDER BY id DESC
+            LIMIT 1
+            '''
+        )
+        row = cursor.fetchone()
+        conn.close()
+        return row[0] if row else None
+
     def get_last_n_raw_metrics(self, n: int = 10) -> Dict[str, List[float]]:
         """Get last N raw metrics grouped by metric type"""
         conn = sqlite3.connect(self.db_path)
