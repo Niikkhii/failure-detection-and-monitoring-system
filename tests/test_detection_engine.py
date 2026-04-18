@@ -58,7 +58,6 @@ def test_anomaly_not_triggered_at_2sigma():
     """
     engine = DetectionEngine()
     import statistics
-    base = [50.0] * 9
     mean = 50.0
     # Use a controlled dataset with measurable variance
     controlled = [48.0, 49.0, 50.0, 51.0, 52.0, 50.0, 49.0, 51.0, 50.0]
