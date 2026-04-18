@@ -44,7 +44,11 @@ class MonitoringAgent:
                     std_dev = variance ** 0.5
 
                     latest = values[0]
-                    anomaly = std_dev > 0 and abs(latest - mean) > 2 * std_dev
+                    # Z-score anomaly detection (3-sigma rule)
+                    anomaly_result = self.detection_engine.detect_anomaly_with_detail(
+                        value=latest, batch_values=values
+                    )
+                    anomaly = anomaly_result.is_anomaly
                     threshold_alert = self.detection_engine.check_metric(metric_type, max_val)
                     threshold_exceeded = threshold_alert is not None
 
@@ -65,7 +69,9 @@ class MonitoringAgent:
                             level="warning",
                             message=(
                                 f"Anomaly detected in {metric_type}: "
-                                f"latest={latest:.2f}, mean={mean:.2f}, std={std_dev:.2f}"
+                                f"latest={latest:.2f}, mean={anomaly_result.mean:.2f}, "
+                                f"std={anomaly_result.std_dev:.2f}, "
+                                f"z_score={anomaly_result.z_score:.2f} ({anomaly_result.direction})"
                             ),
                             source="batch_processor",
                             metric_type=metric_type,

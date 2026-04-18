@@ -1,0 +1,84 @@
+# ── docker-compose.yml ──────────────────────────────────────────────────────
+# Full monitoring stack — one command to run everything:
+#   docker-compose up --build
+#
+# Services:
+#   api        → FastAPI backend   → http://localhost:8000
+#   collector  → psutil collector  → writes to shared SQLite volume
+#   ui         → Streamlit UI      → http://localhost:8501
+# ---------------------------------------------------------------------------
+
+version: "3.9"
+
+services:
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: monitoring_api
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=prod
+      - DB_PATH=/data/monitoring.db
+      - BATCH_WINDOW_SIZE=10
+      # Uncomment to override thresholds:
+      # - THRESHOLD_CPU=80.0
+      # - THRESHOLD_MEMORY=85.0
+      # - THRESHOLD_DISK=90.0
+    volumes:
+      - db_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  collector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: monitoring_collector
+    command: ["python", "metrics_collector.py"]
+    environment:
+      - APP_ENV=prod
+      - DB_PATH=/data/monitoring.db
+    volumes:
+      - db_data:/data
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: monitoring_ui
+    command:
+      - streamlit
+      - run
+      - streamlit_app.py
+      - --server.port=8501
+      - --server.address=0.0.0.0
+      - --server.headless=true
+    ports:
+      - "8501:8501"
+    environment:
+      - APP_ENV=prod
+      - DB_PATH=/data/monitoring.db
+      - API_BASE_URL=http://api:8000
+    volumes:
+      - db_data:/data
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  db_data:
+    driver: local
