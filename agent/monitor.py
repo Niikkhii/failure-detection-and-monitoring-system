@@ -1,5 +1,5 @@
 import asyncio
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 class MonitoringAgent:
     def __init__(self, db, alert_manager, detection_engine, window_size: int = 10):
